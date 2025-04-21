@@ -1,0 +1,25 @@
+{
+    "name": "hapi-validator",
+    "version": "1.0.0",
+    "description": "",
+    "main": "src/index.ts",
+    "scripts": {
+        "start": "tsx .",
+        "dev": "tsx watch ."
+    },
+    "keywords": [],
+    "author": "Kamaal Farah",
+    "license": "ISC",
+    "dependencies": {
+        "@hapi/hapi": "^21",
+        "joi": "^17",
+        "zod": "^3"
+    },
+    "devDependencies": {
+        "@types/node": "^22",
+        "jscodeshift": "^17",
+        "tsx": "^4",
+        "typescript": "^5"
+    },
+    "packageManager": "pnpm@10.9.0+sha256.ea53ab747ac8b7921de63b42eab1adf021e1fe6ded05f62f00885cc33a46118d"
+}
