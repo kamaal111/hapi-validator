@@ -10,18 +10,20 @@ import OpenAI from 'openai';
 
 dotenv.config();
 
+const PACKAGE_JSON_FILEPATH = 'package.json';
 const TARGET_FILE_EXTENSIONS = ['ts', 'js', 'jsx', 'tsx'];
 const TARGET_ROOT_DIRECTORY = 'src';
 const JOI_TO_ZOD_PROMPT_FILEPATH = 'prompts/joi-to-zod.md';
 const OPENAI_MODEL = 'gpt-4.1';
+const JOI_IMPORT_TERMS = ['@hapi/joi', 'joi'];
 
 const EnvSchema = z.object({OPENAI_API_KEY: z.string().nonempty()});
 
 async function main() {
     const start = performance.now();
     const env = await EnvSchema.parseAsync(process.env);
-    const filepathsWithJoiImports = await findImportsWithJoi();
-    if (filepathsWithJoiImports.length === 0) {
+    const filepathsAndImportSourcesWithJoiImports = await findImportSourcesWithJoi();
+    if (filepathsAndImportSourcesWithJoiImports.length === 0) {
         console.log('Nothing to transform here 🐸');
         return;
     }
@@ -32,13 +34,41 @@ async function main() {
         throw new Error(`Could not import ${JOI_TO_ZOD_PROMPT_FILEPATH} for some reason`);
     }
 
-    console.log(`Will transform ${filepathsWithJoiImports.length} files, chill and grab some maté 🧉`);
-    await Promise.all(
-        filepathsWithJoiImports.map(filepath => transformContentToUseZod(joiToZodPrompt, filepath, client))
-    );
+    console.log(`Will transform ${filepathsAndImportSourcesWithJoiImports.length} files, chill and grab some maté 🧉`);
+    const results = (
+        await Promise.allSettled(
+            filepathsAndImportSourcesWithJoiImports.map(({path: filepath}) => {
+                return transformContentToUseZod(joiToZodPrompt, filepath, client);
+            })
+        )
+    ).map((result, index) => ({result, path: filepathsAndImportSourcesWithJoiImports[index].path}));
+    const errors = results.filter(({result}) => result.status === 'rejected') as Array<{
+        result: PromiseRejectedResult;
+        path: string;
+    }>;
+    if (errors.length > 0) {
+        for (const error of errors) {
+            console.error(`Failed to transform '${error.path}', due to error='${error.result.reason}'`);
+        }
+        throw new Error('Failed to transform some files');
+    }
+
+    const packageJSONContent = await getFileContent(PACKAGE_JSON_FILEPATH);
+    if (isNotUndefinedOrNull(packageJSONContent)) {
+        const packageJSON = JSON.parse(packageJSONContent);
+        if (isUndefinedOrNull(packageJSON.dependencies?.zod)) {
+            packageJSON.dependencies = {...packageJSON.dependencies, zod: '^3'};
+            console.log('Add Zod to dependencies, make sure to install packages ✍️');
+        }
+        if (isNotUndefinedOrNull(packageJSON.devDependencies?.zod)) {
+            delete packageJSON.devDependencies.zod;
+        }
+    }
 
     const timeInSeconds = ((performance.now() - start) / 1000).toFixed(2);
-    console.log(`Transformed ${filepathsWithJoiImports.length} files successfully in ${timeInSeconds} seconds ✨`);
+    console.log(
+        `Transformed ${filepathsAndImportSourcesWithJoiImports.length} files successfully in ${timeInSeconds} seconds ✨`
+    );
 }
 
 async function transformContentToUseZod(prompt: string, filepath: string, client: OpenAI): Promise<void> {
@@ -61,14 +91,12 @@ async function transformContentToUseZod(prompt: string, filepath: string, client
     console.log(`Updated file '${filepath}' with Zod schemas 🚀`);
 }
 
-async function findImportsWithJoi() {
+async function findImportSourcesWithJoi(): Promise<Array<{importSources: Array<ts.StringLiteral>; path: string}>> {
     const filepaths = await getAllTargetFilepaths();
 
-    return filepaths.filter(filepath => {
-        const imports = findImportSources(filepath, ['@hapi/joi', 'joi']);
-
-        return imports.length > 0;
-    });
+    return filepaths
+        .map(filepath => ({importSources: findImportSources(filepath, JOI_IMPORT_TERMS), path: filepath}))
+        .filter(({importSources}) => importSources.length > 0);
 }
 
 function findImportSources(filepath: string, searchImport: string | Array<string>): Array<ts.StringLiteral> {
@@ -87,10 +115,10 @@ function getAllImportSources(filepath: string): Array<ts.StringLiteral> {
     ts.forEachChild(sourceFile, node => {
         if (!ts.isImportDeclaration(node)) return;
 
-        const importSource = node.moduleSpecifier;
-        if (!ts.isStringLiteral(importSource)) return;
+        const {moduleSpecifier} = node;
+        if (!ts.isStringLiteral(moduleSpecifier)) return;
 
-        importSources.push(importSource);
+        importSources.push(moduleSpecifier);
     });
 
     return importSources;
