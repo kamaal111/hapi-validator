@@ -5,7 +5,8 @@
     "main": "src/index.ts",
     "scripts": {
         "start": "tsx .",
-        "dev": "tsx watch ."
+        "dev": "tsx watch .",
+        "joi-to-zod": "zsh scripts/joi-to-zod.zsh"
     },
     "keywords": [],
     "author": "Kamaal Farah",
@@ -17,7 +18,9 @@
     },
     "devDependencies": {
         "@types/node": "^22",
-        "jscodeshift": "^17",
+        "dotenv": "^16",
+        "fast-glob": "^3",
+        "openai": "^4",
         "tsx": "^4",
         "typescript": "^5"
     },
