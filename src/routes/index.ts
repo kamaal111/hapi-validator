@@ -13,6 +13,14 @@ function routes(server: Server) {
     });
     server.route({
         method: 'GET',
+        path: '/users/{id}',
+        options: {validate: {params: Joi.object({id: Joi.string()})}},
+        handler: (request, h) => {
+            return 'Hello World!';
+        },
+    });
+    server.route({
+        method: 'GET',
         path: '/greeting',
         options: {validate: {query: GreetingQuery}},
         handler: (request, h) => {
