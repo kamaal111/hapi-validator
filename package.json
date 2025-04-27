@@ -13,6 +13,7 @@
     "license": "ISC",
     "dependencies": {
         "@hapi/hapi": "^21",
+        "ai-transform": "^0.0.5",
         "joi": "^17",
         "zod": "^3"
     },
@@ -20,7 +21,6 @@
         "@types/node": "^22",
         "dotenv": "^16",
         "fast-glob": "^3",
-        "openai": "^4",
         "tsx": "^4",
         "typescript": "^5"
     },

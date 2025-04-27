@@ -4,9 +4,8 @@ import {performance} from 'node:perf_hooks';
 
 import fg from 'fast-glob';
 import dotenv from 'dotenv';
-import z from 'zod';
 import ts from 'typescript';
-import OpenAI from 'openai';
+import {transformFromFile} from 'ai-transform';
 
 dotenv.config();
 
@@ -17,18 +16,14 @@ const JOI_TO_ZOD_PROMPT_FILEPATH = 'prompts/joi-to-zod.md';
 const OPENAI_MODEL = 'gpt-4.1';
 const JOI_IMPORT_TERMS = ['@hapi/joi', 'joi'];
 
-const EnvSchema = z.object({OPENAI_API_KEY: z.string().nonempty()});
-
 async function main() {
     const start = performance.now();
-    const env = await EnvSchema.parseAsync(process.env);
     const filepathsAndImportSourcesWithJoiImports = await findImportSourcesWithJoi();
     if (filepathsAndImportSourcesWithJoiImports.length === 0) {
         console.log('Nothing to transform here 🐸');
         return;
     }
 
-    const client = new OpenAI({apiKey: env.OPENAI_API_KEY});
     const joiToZodPrompt = await getFileContent(JOI_TO_ZOD_PROMPT_FILEPATH);
     if (isUndefinedOrNull(joiToZodPrompt)) {
         throw new Error(`Could not import ${JOI_TO_ZOD_PROMPT_FILEPATH} for some reason`);
@@ -38,7 +33,7 @@ async function main() {
     const results = (
         await Promise.allSettled(
             filepathsAndImportSourcesWithJoiImports.map(({path: filepath}) => {
-                return transformContentToUseZod(joiToZodPrompt, filepath, client);
+                return transformContentToUseZod(joiToZodPrompt, filepath);
             })
         )
     ).map((result, index) => ({result, path: filepathsAndImportSourcesWithJoiImports[index].path}));
@@ -71,22 +66,13 @@ async function main() {
     );
 }
 
-async function transformContentToUseZod(prompt: string, filepath: string, client: OpenAI): Promise<void> {
+async function transformContentToUseZod(prompt: string, filepath: string): Promise<void> {
     const content = await getFileContent(filepath);
     if (isUndefinedOrNull(content)) {
         throw new Error(`Could not get content of '${filepath}' even after parsing`);
     }
 
-    const promptWithContent = prompt.replace('/_ Contents of the source file to refactor _/', content);
-    const completion = await client.chat.completions.create({
-        model: OPENAI_MODEL,
-        messages: [{role: 'user', content: promptWithContent}],
-    });
-    const newContent = completion.choices[0]?.message.content;
-    if (isUndefinedOrNull(newContent)) {
-        throw new Error(`No content received from AI; full_response='${completion}'`);
-    }
-
+    const newContent = await transformFromFile(filepath, prompt, {llm: {model: OPENAI_MODEL}});
     await fs.writeFile(filepath, newContent);
     console.log(`Updated file '${filepath}' with Zod schemas 🚀`);
 }

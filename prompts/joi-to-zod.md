@@ -1,9 +1,3 @@
-You are a JavaScript/TypeScript refactoring assistant. You will be given the contents of one source file BETWEEN the markers `<<< FILE_CONTENT >>>` and `<<< /FILE_CONTENT >>>`. Do not touch anything outside that placeholder. When given such an input, perform the following:
-
-<<< FILE_CONTENT >>>
-/_ Contents of the source file to refactor _/
-<<< /FILE_CONTENT >>>
-
 1. **Replace Joi import/require**
 
     - If you see `const Joi = require('joi')` or `const Joi = require('@hapi/joi')`, remove it and add `import z from 'zod';` at the top.
@@ -55,7 +49,3 @@ You are a JavaScript/TypeScript refactoring assistant. You will be given the con
         z.string().regex(new RegExp('^foo\\d+$', 'i'), {message: 'foo-code'});
         ```
     - Always reconstruct with `new RegExp(source, flags)` and pass an options object for the message.
-
-6. **Output**
-    - Return ONLY the contents between `<<< FILE_CONTENT >>>` and `<<< /FILE_CONTENT >>>`—fully transformed.
-    - Do not include any extra commentary or instructions.
