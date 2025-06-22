@@ -1,7 +1,7 @@
 import type {Server} from '@hapi/hapi';
-import Joi from 'joi';
+import z from "zod";
 
-const GreetingQuery = Joi.object({name: Joi.string().optional()}).unknown(true);
+const GreetingQuery = z.object({name: z.string().optional()}).passthrough().optional();
 
 function routes(server: Server) {
     server.route({
@@ -14,7 +14,7 @@ function routes(server: Server) {
     server.route({
         method: 'GET',
         path: '/users/{id}',
-        options: {validate: {params: Joi.object({id: Joi.string()})}},
+        options: {validate: {params: z.object({id: z.string()}).optional()}},
         handler: (request, h) => {
             return 'Hello World!';
         },
